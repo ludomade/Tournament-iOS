@@ -4,6 +4,7 @@ This README would normally document whatever steps are necessary to get your app
 
 ### What is this repository for? ###
 
+* TODO fill in this information
 
 ### How do I get set up? ###
 
@@ -26,5 +27,8 @@ This README would normally document whatever steps are necessary to get your app
 
 ### Contribution guidelines ###
 
+* TODO fill in this information
 
 ### Who do I talk to? ###
+
+* TODO fill in this information
