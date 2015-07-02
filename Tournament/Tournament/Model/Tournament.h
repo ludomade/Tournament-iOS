@@ -50,7 +50,7 @@ typedef enum
 @property (nonatomic, strong) NSString* createdBy;
 @property (nonatomic, strong) NSString* name;
 @property (nonatomic, strong) NSString* tournamentType;
-@property (nonatomic, strong) NSString* state;
+@property (nonatomic, strong) NSString* tournamentState;
 @property (nonatomic, strong) NSString* rankedBy;
 @property (nonatomic, assign) BOOL quickAdvance;
 @property (nonatomic, assign) BOOL holdThirdPlaceMatch;

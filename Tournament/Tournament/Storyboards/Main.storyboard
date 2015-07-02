@@ -237,27 +237,7 @@
                                 <subviews>
                                     <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="5GO-5Q-K6g">
                                         <rect key="frame" x="0.0" y="0.0" width="600" height="531"/>
-                                        <subviews>
-                                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="BSP-LS-UiT">
-                                                <rect key="frame" x="184" y="236" width="231" height="60"/>
-                                                <constraints>
-                                                    <constraint firstAttribute="height" constant="60" id="Zkt-36-ebw"/>
-                                                    <constraint firstAttribute="width" constant="231" id="moC-hr-aQX"/>
-                                                </constraints>
-                                                <state key="normal" title="Import all Challonge data">
-                                                    <color key="titleColor" white="0.0" alpha="1" colorSpace="calibratedWhite"/>
-                                                    <color key="titleShadowColor" white="0.5" alpha="1" colorSpace="calibratedWhite"/>
-                                                </state>
-                                                <connections>
-                                                    <action selector="onImportAction:" destination="8rJ-Kc-sve" eventType="touchUpInside" id="US3-pD-QQN"/>
-                                                </connections>
-                                            </button>
-                                        </subviews>
                                         <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
-                                        <constraints>
-                                            <constraint firstAttribute="centerX" secondItem="BSP-LS-UiT" secondAttribute="centerX" constant="0.5" id="9Su-X4-16o"/>
-                                            <constraint firstAttribute="centerY" secondItem="BSP-LS-UiT" secondAttribute="centerY" id="y5j-mh-rOp"/>
-                                        </constraints>
                                     </view>
                                 </subviews>
                                 <constraints>

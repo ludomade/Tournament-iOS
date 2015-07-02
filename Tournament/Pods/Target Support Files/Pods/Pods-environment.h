@@ -70,13 +70,13 @@
 #define COCOAPODS_POD_AVAILABLE_Parse
 #define COCOAPODS_VERSION_MAJOR_Parse 1
 #define COCOAPODS_VERSION_MINOR_Parse 7
-#define COCOAPODS_VERSION_PATCH_Parse 4
+#define COCOAPODS_VERSION_PATCH_Parse 5
 
 // ParseCrashReporting
 #define COCOAPODS_POD_AVAILABLE_ParseCrashReporting
 #define COCOAPODS_VERSION_MAJOR_ParseCrashReporting 1
 #define COCOAPODS_VERSION_MINOR_ParseCrashReporting 7
-#define COCOAPODS_VERSION_PATCH_ParseCrashReporting 4
+#define COCOAPODS_VERSION_PATCH_ParseCrashReporting 5
 
 // ReactiveCocoa
 #define COCOAPODS_POD_AVAILABLE_ReactiveCocoa

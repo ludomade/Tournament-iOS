@@ -10,6 +10,7 @@
 #import <Parse/Parse.h>
 #import "User.h"
 
+
 @interface SecondViewController ()
 
 @end
@@ -33,6 +34,12 @@
     [super viewWillAppear:animated];
     
     [self.navigationController setNavigationBarHidden:YES animated:NO];
+}
+
+- (void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+
 }
 
 - (void)viewWillDisappear:(BOOL)animated

@@ -125,8 +125,6 @@
 {
     [self dismissKeyboard];
     
-    DLog(@"Tournament Created");
-    
     if(![self.participantList count])
     {
         UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Error" message:@"You cannot create a tournament without any participants. Please add some now." preferredStyle:UIAlertControllerStyleAlert];
@@ -142,24 +140,33 @@
         [self presentViewController:alert animated:YES completion:nil];
     }
     
-    self.createdTournament = [Tournament new];
+    PFObject* tournament = [PFObject objectWithClassName:@"Tournament"];
     
-    self.createdTournament.name = self.tournamentName;
+//    self.createdTournament = [Tournament new];
+//    
+//    self.createdTournament.name = self.tournamentName;
+    
+    tournament[@"name"] = self.tournamentName;
     
     if(self.gameNameTextField.text.length > 0)
     {
-        self.createdTournament.gameName = self.gameNameTextField.text;
+//        self.createdTournament.gameName = self.gameNameTextField.text;
+        tournament[@"gameName"] = self.gameNameTextField.text;
     }
     else
     {
-        self.createdTournament.gameName = @"Unspecified game";
+//        self.createdTournament.gameName = @"Unspecified game";
+        tournament[@"gameName"] = @"Unspecified game";
     }
     
-    self.createdTournament.tournamentType = @"Single Elimination";
+//    self.createdTournament.tournamentType = @"Single Elimination";
+    tournament[@"tournamentType"] = @"Single Elimination";
     
-    self.createdTournament.state = @"pending";
+//    self.createdTournament.state = @"pending";
+    tournament[@"tournamentState"] = @"pending";
     
-    self.createdTournament.createdBy = [TNetworkManager sharedInstance].user.username;
+//    self.createdTournament.createdBy = [TNetworkManager sharedInstance].user.username;
+    tournament[@"createdBy"] = [TNetworkManager sharedInstance].user.username;
     
     [self CreateMatches];
     
@@ -178,22 +185,28 @@
         return;
     }
     
-    self.createdTournament.tournamentParticipantsDictAr = self.participantList;
-    self.createdTournament.tournamentMatchesDictAr = self.matchList;
+//    self.createdTournament.tournamentParticipantsDictAr = self.participantList;
+    tournament[@"tournamentParticipantsDictAr"] = self.participantList;
     
-    self.createdTournament.maxNumberRounds = self.roundCounter;
+//    self.createdTournament.tournamentMatchesDictAr = self.matchList;
+    tournament[@"tournamentMatchesDictAr"] = self.matchList;
     
-    self.createdTournament.participantsCount = (int) [self.participantList count];
+//    self.createdTournament.maxNumberRounds = self.roundCounter;
+    tournament[@"maxNumberRounds"] = [NSNumber numberWithInt:self.roundCounter];
     
-    self.createdTournament.quickAdvance = YES;
+//    self.createdTournament.participantsCount = (int) [self.participantList count];
+    tournament[@"participantsCount"] = [NSNumber numberWithInt:(int)[self.participantList count]];
     
-    [self.createdTournament saveInBackgroundWithBlock:^(BOOL succeeded, NSError *error) {
+//    self.createdTournament.quickAdvance = YES;
+    tournament[@"quickAdvance"] = @YES;
+    
+    [tournament saveInBackgroundWithBlock:^(BOOL succeeded, NSError *error) {
         if (succeeded)
         {
             // The object has been saved.
             
-            [[TNetworkManager sharedInstance].user newTournamentName:self.createdTournament.name];
-            [[TNetworkManager sharedInstance].user save];
+            [[TNetworkManager sharedInstance].user newTournamentName:tournament[@"name"]];
+            [[TNetworkManager sharedInstance].user saveEventually];
             
             [self.navigationController popViewControllerAnimated:YES];
         }
@@ -265,8 +278,6 @@
             matchID += 1;
         }
     }
-    
-    //TODO: finish setting up byes.
     
     
     do

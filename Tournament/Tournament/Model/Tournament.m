@@ -18,7 +18,7 @@
 @dynamic createdBy;
 @dynamic name;
 @dynamic tournamentType;
-@dynamic state;
+@dynamic tournamentState;
 @dynamic rankedBy;
 @dynamic quickAdvance;
 @dynamic holdThirdPlaceMatch;
@@ -138,7 +138,7 @@
 
 - (tournamentState)getTournamentState
 {
-    return [Tournament getTournamentStateFromString:self.state];
+    return [Tournament getTournamentStateFromString:self.tournamentState];
 }
 
 - (tournamentRankedBy)getTournamentRanked
