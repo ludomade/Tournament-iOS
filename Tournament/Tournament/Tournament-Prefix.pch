@@ -1,0 +1,23 @@
+//
+//  Tournament-Prefix.pch
+//  Tournament
+//
+//  Created by Eugene Heckert on 5/7/15.
+//  Copyright (c) 2015 Eugene Heckert. All rights reserved.
+//
+
+#import <Availability.h>
+
+#ifndef __IPHONE_8_0
+#warning "This project uses features only available in iOS SDK 8.0 and later."
+#endif
+
+#ifdef __OBJC__
+
+    #import "TNetworkManager.h"
+    #import "Common.h"
+    #import "NSDictionary+NullValueCheck.h"
+    #import "TActivityIndicator.h"
+    #import "TNoDataView.h"
+
+#endif

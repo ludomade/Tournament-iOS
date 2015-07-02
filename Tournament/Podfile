@@ -1,0 +1,8 @@
+platform :ios,'8.0'
+
+pod 'ReactiveCocoa', '2.1.8'
+pod 'AFNetworking', '~> 2.4'
+pod 'Reveal-iOS-SDK', :configurations => ['Debug']
+pod 'Mantle'
+pod 'Parse'
+pod 'ParseCrashReporting'

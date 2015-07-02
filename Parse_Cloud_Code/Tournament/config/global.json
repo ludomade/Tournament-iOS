@@ -1,0 +1,14 @@
+{
+  "global": {
+    "parseVersion": "1.4.2"
+  },
+  "applications": {
+    "Tournament": {
+      "applicationId": "dLBIi8iLd1Vby880mBTvAv0rwrTsGna1PncmALJA",
+      "masterKey": "45r47iNkK50vxaysf35tduNwPpME7p1UTHDsjfQR"
+    },
+    "_default": {
+      "link": "Tournament"
+    }
+  }
+}

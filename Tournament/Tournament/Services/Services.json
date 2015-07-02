@@ -1,0 +1,22 @@
+{
+    "name": "Tournament REST Protocol v1.0",
+    "environments": 
+    {
+        "production": 
+        {
+            "baseUri": "https://api.challonge.com/",
+            "version": "v1/"
+        }
+    },
+    "requests": 
+    {
+        "ListTournaments": 
+        {
+            "uri": "tournaments.json",
+            "httpVerb": "GET",
+            "authentication": "basic",
+            "contentType": "application/json",
+            "accept": "application/json"
+        }
+    }
+}
