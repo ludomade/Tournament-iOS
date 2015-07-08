@@ -27,9 +27,9 @@
 
 @property (nonatomic, strong) NSString* tournamentName;
 
-@property (nonatomic, strong) Tournament* currentTournament;
+@property (nonatomic, strong) NSString* tournamentType;
 
-@property (nonatomic, strong) Tournament* createdTournament;
+@property (nonatomic, strong) Tournament* currentTournament;
 
 @property (nonatomic, assign) CGRect nextParticipantViewFrame;
 
@@ -62,6 +62,7 @@
     NSInteger tournamentNumber = 0;
     NSString* possibleName;
     
+    /*This is used to create a possible tournament name. We want to avoid Tournaments with the same name.*/
     do
     {
         tournamentNumber++;
@@ -79,6 +80,10 @@
     
     self.tournamentName = possibleName;
     
+    self.tournamentType = @"Single Elimination";
+    
+    self.tournamentTypeLabel.text = [NSString stringWithFormat:@"Current Tournament Type: %@", self.tournamentType];
+    
 }
 
 - (void)viewDidAppear:(BOOL)animated
@@ -90,14 +95,18 @@
     
     TParticipantView* participantView = [TParticipantView new];
     
-    self.nextParticipantViewFrame = (CGRect){CGPointZero,{self.participantListView.frame.size.width, participantView.frame.size.height}};
+    self.nextParticipantViewFrame = (CGRect){{0,1},{self.participantListView.frame.size.width, participantView.frame.size.height}};
     
+#if DEBUG
+    /*This allows for the creation of large tournaments without the need for having to hand enter
+      each participant's name. The names will just be a number/*/
     for(int i = 0; i < AUTO_CREATE_PARTICIPANTS_COUNT;i++)
     {
         self.participantNameEntryTextField.text = [NSString stringWithFormat:@"%i",i];
         
         [self onAddParticipantAction:nil];
     }
+#endif
     
 }
 
@@ -114,6 +123,8 @@
     // Dispose of any resources that can be recreated.
 }
 
+#pragma mark - View Controller Methods
+
 - (void) dismissKeyboard
 {
     [self.tournamentNameTextField resignFirstResponder];
@@ -121,11 +132,56 @@
     [self.participantNameEntryTextField resignFirstResponder];
 }
 
+#pragma mark - Tournament Helper Methods
+
+- (NSDictionary*) createMatchWtihID:(NSString*)matchID PlayerOneID:(NSString*)playerOneID PlayerTwoID:(NSString*)playerTwoID PlayerOnePreReqMatch:(NSString*)playerOnePreReqMatch PlayerTwoPreReqMatch:(NSString*)playerTwoPreReqMatch PlayerOnePreReqMatchLoser:(BOOL)playerOneMatchLoser PlayerTwoPreReqMatchLoser:(BOOL)playerTwoMatchLoser
+{
+    return @{
+             @"matchID":matchID,
+             @"matchState":@"pending",
+             @"round":[NSNumber numberWithInt: self.roundCounter],
+             @"playerOneID":playerOneID,
+             @"playerTwoID":playerTwoID,
+             @"playerOneScore":[NSNumber numberWithInt: 0],
+             @"playerTwoScore":[NSNumber numberWithInt: 0],
+             @"playerOnePreReqMatchID":playerOnePreReqMatch,
+             @"playerTwoPreReqMatchID":playerTwoPreReqMatch,
+             @"playerOnePreReqMatchLoser":@(playerOneMatchLoser),
+             @"playerTwoPreReqMatchLoser":@(playerTwoMatchLoser),
+             @"winnerID":@"",
+             @"loserID":@""
+             };
+}
+
+- (NSMutableDictionary*) getNextParticipant
+{
+    
+    for(int i = 0; i < [self.participantList count];i++)
+    {
+        NSMutableDictionary* tempParticipant = self.participantList[i];
+        
+        if(![[tempParticipant valueForKey:ASSIGNED_MATCH_KEY] boolValue])
+        {
+            return tempParticipant;
+        }
+    }
+    
+    return [NSMutableDictionary new];
+}
+
+- (BOOL) isPowerOfTwo:(int) x
+{
+    return ((x != 0) && !(x & (x-1)));
+}
+
+#pragma mark - Create Tournaments
+
 - (void) createTournament
 {
     [self dismissKeyboard];
     
-    if(![self.participantList count])
+    /*You need atleast two people to have a tournament. More would be better but not required.*/
+    if([self.participantList count] < 2)
     {
         UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Error" message:@"You cannot create a tournament without any participants. Please add some now." preferredStyle:UIAlertControllerStyleAlert];
         
@@ -140,35 +196,40 @@
         [self presentViewController:alert animated:YES completion:nil];
     }
     
+    /*When creating a tournament you want to create it with a PFObject
+      this is due to the fact that it will allow parse to lazily create
+      the class and you don't have to.
+      If you want to use the Tournament model object for the creation of 
+      a tournament you will need to first create the class with all the
+      matching fields.*/
     PFObject* tournament = [PFObject objectWithClassName:@"Tournament"];
-    
-//    self.createdTournament = [Tournament new];
-//    
-//    self.createdTournament.name = self.tournamentName;
     
     tournament[@"name"] = self.tournamentName;
     
     if(self.gameNameTextField.text.length > 0)
     {
-//        self.createdTournament.gameName = self.gameNameTextField.text;
         tournament[@"gameName"] = self.gameNameTextField.text;
     }
     else
     {
-//        self.createdTournament.gameName = @"Unspecified game";
         tournament[@"gameName"] = @"Unspecified game";
     }
     
-//    self.createdTournament.tournamentType = @"Single Elimination";
-    tournament[@"tournamentType"] = @"Single Elimination";
+    tournament[@"tournamentType"] = self.tournamentType;
     
-//    self.createdTournament.state = @"pending";
     tournament[@"tournamentState"] = @"pending";
     
-//    self.createdTournament.createdBy = [TNetworkManager sharedInstance].user.username;
     tournament[@"createdBy"] = [TNetworkManager sharedInstance].user.username;
     
-    [self CreateMatches];
+    if([[self.tournamentType uppercaseString] isEqualToString:[@"Single Elimination" uppercaseString]])
+    {
+        [self createSingleEliminationMatches];
+    }
+    else
+    if([[self.tournamentType uppercaseString] isEqualToString:[@"Double Elimination" uppercaseString]])
+    {
+        [self createDoubleEliminationMatches];
+    }
     
     if([self.matchList count] <= 0)
     {
@@ -185,27 +246,25 @@
         return;
     }
     
-//    self.createdTournament.tournamentParticipantsDictAr = self.participantList;
     tournament[@"tournamentParticipantsDictAr"] = self.participantList;
     
-//    self.createdTournament.tournamentMatchesDictAr = self.matchList;
     tournament[@"tournamentMatchesDictAr"] = self.matchList;
     
-//    self.createdTournament.maxNumberRounds = self.roundCounter;
     tournament[@"maxNumberRounds"] = [NSNumber numberWithInt:self.roundCounter];
     
-//    self.createdTournament.participantsCount = (int) [self.participantList count];
     tournament[@"participantsCount"] = [NSNumber numberWithInt:(int)[self.participantList count]];
     
-//    self.createdTournament.quickAdvance = YES;
     tournament[@"quickAdvance"] = @YES;
     
-    [tournament saveInBackgroundWithBlock:^(BOOL succeeded, NSError *error) {
+    [tournament saveInBackgroundWithBlock:^(BOOL succeeded, NSError *error)
+    {
         if (succeeded)
         {
-            // The object has been saved.
-            
+            //Update the list of Tournament names so that it can't be reused.
             [[TNetworkManager sharedInstance].user newTournamentName:tournament[@"name"]];
+            
+            /*No need to wait for this update since it only affects the possible name of tournaments
+              and most users will not be making more then one tournament at a time.*/
             [[TNetworkManager sharedInstance].user saveEventually];
             
             [self.navigationController popViewControllerAnimated:YES];
@@ -227,30 +286,39 @@
     
 }
 
-- (void) CreateMatches
+#pragma mark - Single Elimination Matches
+
+- (void) createSingleEliminationMatches
 {
     int participantCount = (int)[self.participantList count];
     int preReqMatchCoutner = 0;
     int matchID = 0;
-    int numberToElimateRoundOne = 0;
+    int numberToEliminateRoundOne = 0;
     int numberOfByes = 0;
     
     self.roundCounter = 0;
     
+    /*For the tournament to work correctly you need a number of participants
+      that are a power of two. If the number of participants are not a power
+      of two you will need to find the humber of people who need to be eliminated
+      in round one so that round two is a power of two.*/
     while (![self isPowerOfTwo:participantCount])
     {
-        numberToElimateRoundOne++;
+        numberToEliminateRoundOne++;
         participantCount--;
         
     };
     
-    if(numberToElimateRoundOne)
+    /*If you need to Elimination people you can safly assume that for each person
+      who you need to eliminate you will have a round one match. After which all 
+      remaining players will get a bye to round two.*/
+    if(numberToEliminateRoundOne)
     {
-        numberOfByes = (participantCount - numberToElimateRoundOne);
+        numberOfByes = (participantCount - numberToEliminateRoundOne);
         
         self.roundCounter++;
         
-        for(int i = 0,j = 0;j < numberToElimateRoundOne;i += 2,j++)
+        for(int i = 0,j = 0;j < numberToEliminateRoundOne;i += 2,j++)
         {
             NSMutableDictionary* playerOne;
             NSMutableDictionary* playerTwo;
@@ -269,7 +337,7 @@
             playerOnePreReqMatch = @"";
             playerTwoPreReqMatch = @"";
             
-            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:playerTwo[@"participantID"] PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
+            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:playerTwo[@"participantID"] PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch PlayerOnePreReqMatchLoser:NO PlayerTwoPreReqMatchLoser:NO];
             
             DLog(@"match: %@", match);
             
@@ -279,10 +347,10 @@
         }
     }
     
-    
+    /*This makes the rest of the tournament's matches.*/
     do
     {
-        self.roundCounter += 1;
+        self.roundCounter++;
         
         for(int i = 0; i < participantCount;i += 2)
         {
@@ -290,8 +358,14 @@
             NSMutableDictionary* playerTwo;
             NSString* playerOnePreReqMatch = @"";
             NSString* playerTwoPreReqMatch = @"";
+            NSString* playerOneID = @"";
+            NSString* playerTwoID = @"";
             NSDictionary* match = @{};
             
+            /*If you did not need to eliminate anyone the first round this will
+              make round one matches. Round one matches are different from other
+              matches due to the fact they do not have prerequisite matches and 
+              participants will be assigned to a match.*/
             if(self.roundCounter == 1)
             {
                 playerOne = [self getNextParticipant];
@@ -305,15 +379,223 @@
                 playerOnePreReqMatch = @"";
                 playerTwoPreReqMatch = @"";
                 
-                match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:playerTwo[@"participantID"] PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
+                playerOneID = playerOne[@"participantID"];
+                playerTwoID = playerTwo[@"participantID"];
+                
+//                match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:playerTwo[@"participantID"] PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch PlayerOnePreReqMatchLoser:NO PlayerTwoPreReqMatchLoser:NO];
+            }
+            else
+            if(self.roundCounter == 2 && numberOfByes)
+            {
+                /*If the number of byes is less then the number of people to
+                  eliminated in round one it means that two matchs will have 
+                  to complete against each other to see advances to round two.
+                  If the number of byes is greater then the number of participants
+                  to eliminate then the winner of a match will face off against one
+                  of the bye paticipants. If there enough byes some of them will be 
+                  full matches and will act like normal.*/
+                if(numberOfByes >= numberToEliminateRoundOne)
+                {
+                    if(numberToEliminateRoundOne > preReqMatchCoutner)
+                    {
+                        playerOne = (NSMutableDictionary*)[self getNextParticipant];
+                        
+                        [playerOne setValue:@YES forKey:ASSIGNED_MATCH_KEY];
+                        
+                        playerTwoPreReqMatch = [NSString stringWithFormat:@"%i", preReqMatchCoutner];
+                        
+                        preReqMatchCoutner += 1;
+                        
+                        playerOneID = playerOne[@"participantID"];
+                        
+//                        match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch PlayerOnePreReqMatchLoser:NO PlayerTwoPreReqMatchLoser:NO];
+                    }
+                    else
+                    {
+                        playerOne = [self getNextParticipant];
+                        
+                        [playerOne setValue:@YES forKey:ASSIGNED_MATCH_KEY];
+                        
+                        playerTwo = [self getNextParticipant];
+                        
+                        [playerTwo setValue:@YES forKey:ASSIGNED_MATCH_KEY];
+                        
+                        playerOnePreReqMatch = @"";
+                        playerTwoPreReqMatch = @"";
+                        
+                        playerOneID = playerOne[@"participantID"];
+                        playerTwoID = playerTwo[@"participantID"];
+                        
+//                        match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:playerTwo[@"participantID"] PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch PlayerOnePreReqMatchLoser:NO PlayerTwoPreReqMatchLoser:NO];
+                        
+                    }
+                }
+                else
+                {
+                    if(numberOfByes > preReqMatchCoutner)
+                    {
+                        playerOne = (NSMutableDictionary*)[self getNextParticipant];
+                        
+                        [playerOne setValue:@YES forKey:ASSIGNED_MATCH_KEY];
+                        
+                        playerTwoPreReqMatch = [NSString stringWithFormat:@"%i", preReqMatchCoutner];
+                        
+                        preReqMatchCoutner += 1;
+                        
+                        playerOneID = playerOne[@"participantID"];
+                        
+//                        match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch PlayerOnePreReqMatchLoser:NO PlayerTwoPreReqMatchLoser:NO];
+                    }
+                    else
+                    {
+                        playerOnePreReqMatch = [NSString stringWithFormat:@"%i", preReqMatchCoutner];
+                        
+                        preReqMatchCoutner += 1;
+                        
+                        playerTwoPreReqMatch = [NSString stringWithFormat:@"%i", preReqMatchCoutner];
+                        
+                        preReqMatchCoutner += 1;
+                        
+//                        match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:@"" PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch PlayerOnePreReqMatchLoser:NO PlayerTwoPreReqMatchLoser:NO];
+                        
+                    }
+                }
+            }
+            else
+            {
+                playerOnePreReqMatch = [NSString stringWithFormat:@"%i", preReqMatchCoutner];
+                
+                preReqMatchCoutner += 1;
+                
+                playerTwoPreReqMatch = [NSString stringWithFormat:@"%i", preReqMatchCoutner];
+                
+                preReqMatchCoutner += 1;
+                
+//                match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:@"" PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch PlayerOnePreReqMatchLoser:NO PlayerTwoPreReqMatchLoser:NO];
+            }
+            
+            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOneID PlayerTwoID:playerTwoID PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch PlayerOnePreReqMatchLoser:NO PlayerTwoPreReqMatchLoser:NO];
+            
+            DLog(@"match: %@", match);
+            
+            [self.matchList addObject:match];
+            
+            matchID += 1;
+        }
+        
+        participantCount /= 2;
+        
+        DLog(@"participantCount: %i", participantCount);
+        
+    }while(participantCount > 1);
+}
+
+#pragma mark - Double Elimination Matches
+
+- (void) createDoubleEliminationMatches
+{
+    int participantCount = (int)[self.participantList count];
+    int preReqMatchCoutner = 0;
+    int matchID = 0;
+    int numberToEliminateRoundOne = 0;
+    int numberOfByes = 0;
+    
+    self.roundCounter = 0;
+    
+    /*For the tournament to work correctly you need a number of participants
+     that are a power of two. If the number of participants are not a power
+     of two you will need to find the humber of people who need to be eliminated
+     in round one so that round two is a power of two.*/
+    while (![self isPowerOfTwo:participantCount])
+    {
+        numberToEliminateRoundOne++;
+        participantCount--;
+        
+    };
+    
+    /*If you need to Elimination people you can safly assume that for each person
+     who you need to eliminate you will have a round one match. After which all
+     remaining players will get a bye to round two.*/
+    if(numberToEliminateRoundOne)
+    {
+        numberOfByes = (participantCount - numberToEliminateRoundOne);
+        
+        self.roundCounter++;
+        
+        for(int i = 0,j = 0;j < numberToEliminateRoundOne;i += 2,j++)
+        {
+            NSMutableDictionary* playerOne;
+            NSMutableDictionary* playerTwo;
+            NSString* playerOnePreReqMatch = @"";
+            NSString* playerTwoPreReqMatch = @"";
+            NSDictionary* match = @{};
+            
+            playerOne = [self getNextParticipant];
+            
+            [playerOne setValue:@YES forKey:ASSIGNED_MATCH_KEY];
+            
+            playerTwo = [self getNextParticipant];
+            
+            [playerTwo setValue:@YES forKey:ASSIGNED_MATCH_KEY];
+            
+            playerOnePreReqMatch = @"";
+            playerTwoPreReqMatch = @"";
+            
+//            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:playerTwo[@"participantID"] PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
+            
+            DLog(@"match: %@", match);
+            
+            [self.matchList addObject:match];
+            
+            matchID += 1;
+        }
+    }
+    
+    /*This makes the rest of the tournament's matches.*/
+    do
+    {
+        self.roundCounter++;
+        
+        for(int i = 0; i < participantCount;i += 2)
+        {
+            NSMutableDictionary* playerOne;
+            NSMutableDictionary* playerTwo;
+            NSString* playerOnePreReqMatch = @"";
+            NSString* playerTwoPreReqMatch = @"";
+            NSDictionary* match = @{};
+            
+            /*If you did not need to eliminate anyone the first round this will
+             make round one matches. Round one matches are different from other
+             matches due to the fact they do not have prerequisite matches and
+             participants will be assigned to a match.*/
+            if(self.roundCounter == 1)
+            {
+                playerOne = [self getNextParticipant];
+                
+                [playerOne setValue:@YES forKey:ASSIGNED_MATCH_KEY];
+                
+                playerTwo = [self getNextParticipant];
+                
+                [playerTwo setValue:@YES forKey:ASSIGNED_MATCH_KEY];
+                
+                playerOnePreReqMatch = @"";
+                playerTwoPreReqMatch = @"";
+                
+//                match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:playerTwo[@"participantID"] PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
             }
             else
                 if(self.roundCounter == 2 && numberOfByes)
                 {
-                    
-                    if(numberOfByes >= numberToElimateRoundOne)
+                    /*If the number of byes is less then the number of people to
+                     eliminated in round one it means that two matchs will have
+                     to complete against each other to see advances to round two.
+                     If the number of byes is greater then the number of participants
+                     to eliminate then the winner of a match will face off against one
+                     of the bye paticipants. If there enough byes some of them will be
+                     full matches and will act like normal.*/
+                    if(numberOfByes >= numberToEliminateRoundOne)
                     {
-                        if(numberToElimateRoundOne > preReqMatchCoutner)
+                        if(numberToEliminateRoundOne > preReqMatchCoutner)
                         {
                             playerOne = (NSMutableDictionary*)[self getNextParticipant];
                             
@@ -323,7 +605,7 @@
                             
                             preReqMatchCoutner += 1;
                             
-                            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
+//                            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
                         }
                         else
                         {
@@ -338,7 +620,7 @@
                             playerOnePreReqMatch = @"";
                             playerTwoPreReqMatch = @"";
                             
-                            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:playerTwo[@"participantID"] PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
+//                            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:playerTwo[@"participantID"] PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
                             
                         }
                     }
@@ -354,7 +636,7 @@
                             
                             preReqMatchCoutner += 1;
                             
-                            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
+//                            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:playerOne[@"participantID"] PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
                         }
                         else
                         {
@@ -366,7 +648,7 @@
                             
                             preReqMatchCoutner += 1;
                             
-                            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:@"" PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
+//                            match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:@"" PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
                             
                         }
                     }
@@ -381,7 +663,7 @@
                     
                     preReqMatchCoutner += 1;
                     
-                    match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:@"" PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
+//                    match = [self createMatchWtihID:[NSString stringWithFormat:@"%i", matchID] PlayerOneID:@"" PlayerTwoID:@"" PlayerOnePreReqMatch:playerOnePreReqMatch PlayerTwoPreReqMatch:playerTwoPreReqMatch];
                 }
             
             DLog(@"match: %@", match);
@@ -398,40 +680,7 @@
     }while(participantCount > 1);
 }
 
-- (NSDictionary*) createMatchWtihID:(NSString*)matchID PlayerOneID:(NSString*)playerOneID PlayerTwoID:(NSString*)playerTwoID PlayerOnePreReqMatch:(NSString*)playerOnePreReqMatch PlayerTwoPreReqMatch:(NSString*)playerTwoPreReqMatch
-{
-    return @{
-             @"matchID":matchID,
-             @"matchState":@"pending",
-             @"round":[NSNumber numberWithInt: self.roundCounter],
-             @"playerOneID":playerOneID,
-             @"playerTwoID":playerTwoID,
-             @"playerOneScore":[NSNumber numberWithInt: 0],
-             @"playerTwoScore":[NSNumber numberWithInt: 0],
-             @"playerOnePreReqMatchID":playerOnePreReqMatch,
-             @"playerTwoPreReqMatchID":playerTwoPreReqMatch,
-             @"playerOnePreReqMatchLoser":@"",
-             @"playerTwoPreReqMatchLoser":@"",
-             @"winnerID":@"",
-             @"loserID":@""
-             };
-}
-
-- (NSMutableDictionary*) getNextParticipant
-{
-    
-    for(int i = 0; i < [self.participantList count];i++)
-    {
-        NSMutableDictionary* tempParticipant = self.participantList[i];
-        
-        if(![[tempParticipant valueForKey:ASSIGNED_MATCH_KEY] boolValue])
-        {
-            return tempParticipant;
-        }
-    }
-    
-    return [NSMutableDictionary new];
-}
+#pragma mark - IBAction Methods
 
 - (IBAction)onAddParticipantAction:(id)sender
 {
@@ -502,6 +751,17 @@
     [self.participantListView addSubview:participantView];
 }
 
+- (IBAction)onSelectTournamentType:(id)sender
+{
+    UIActionSheet* actionSheet = [[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:nil otherButtonTitles: nil];
+    
+    [actionSheet addButtonWithTitle:@"Single Elimination"];
+    
+    [actionSheet addButtonWithTitle:@"Double Elimination"];
+    
+    [actionSheet showInView:self.view];
+}
+
 - (IBAction)onCreateTournamentAction:(id)sender
 {
     if(self.tournamentNameTextField.text.length < 1)
@@ -512,7 +772,7 @@
                                                            style:UIAlertActionStyleDefault
                                                          handler:^(UIAlertAction *action)
                                    {
-                                       [self createTournament];
+                                        [self createTournament];
                                    }];
         
         UIAlertAction *noAction = [UIAlertAction actionWithTitle:@"NO"
@@ -530,6 +790,8 @@
         return;
     }
     
+    /*We don't want the user to have more then one of the same tournament name.
+      This will help reduce confusion down the road when the user has a lot of tournaments in there list.*/
     if([[TNetworkManager sharedInstance].user isTournamentNameUnique:self.tournamentNameTextField.text])
     {
         UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Error" message:[NSString stringWithFormat:@"You already have a tournament with the name %@. Please use a different name.", self.tournamentNameTextField.text] preferredStyle:UIAlertControllerStyleAlert];
@@ -550,6 +812,8 @@
     
     [self createTournament];
 }
+
+#pragma mark - Keyboard Methods
 
 - (void) keyboardDidShow:(NSNotification*)note
 {
@@ -574,11 +838,6 @@
     }];
 }
 
-- (BOOL) isPowerOfTwo:(int) x
-{
-    return ((x != 0) && !(x & (x-1)));
-}
-
 #pragma mark - UITextFieldDelegate Methods
 
 - (BOOL)textFieldShouldReturn:(UITextField *)textField
@@ -599,6 +858,50 @@
     }
     
     return YES;
+}
+
+#pragma mark - UIActionSheet Methods
+
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    if(!buttonIndex)
+    {
+        return;
+    }
+    
+    NSInteger index = buttonIndex - 1;
+    
+    switch (index)
+    {
+        case 0:
+        {
+            self.tournamentType = @"Single Elimination";
+            break;
+        }
+        case 1:
+        {
+            UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Sorry" message:@"Double Elimination tournaments are not currently supported." preferredStyle:UIAlertControllerStyleAlert];
+            
+            UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"Ok"
+                                                               style:UIAlertActionStyleCancel
+                                                             handler:^(UIAlertAction *action)
+                                       {
+                                       }];
+            
+            [alert addAction:okAction];
+            
+            [self presentViewController:alert animated:YES completion:nil];
+            break;
+        }
+            
+        default:
+        {
+            self.tournamentType = @"Single Elimination";
+            break;
+        }
+    }
+    
+    self.tournamentTypeLabel.text = [NSString stringWithFormat:@"Current Tournament Type: %@", self.tournamentType];
 }
 
 @end

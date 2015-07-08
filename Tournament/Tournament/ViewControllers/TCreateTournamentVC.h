@@ -8,7 +8,7 @@
 
 #import <UIKit/UIKit.h>
 
-@interface TCreateTournamentVC : UIViewController <UITextFieldDelegate>
+@interface TCreateTournamentVC : UIViewController <UITextFieldDelegate, UIActionSheetDelegate>
 
 @property (weak, nonatomic) IBOutlet UIScrollView *scrollView;
 @property (weak, nonatomic) IBOutlet NSLayoutConstraint *scrollViewBottomConstraint;
@@ -17,6 +17,7 @@
 
 @property (weak, nonatomic) IBOutlet UITextField *tournamentNameTextField;
 @property (weak, nonatomic) IBOutlet UITextField *gameNameTextField;
+@property (weak, nonatomic) IBOutlet UILabel *tournamentTypeLabel;
 @property (weak, nonatomic) IBOutlet UIView *participantListView;
 @property (weak, nonatomic) IBOutlet NSLayoutConstraint *participantListViewHeightConstraint;
 @property (weak, nonatomic) IBOutlet UITextField *participantNameEntryTextField;

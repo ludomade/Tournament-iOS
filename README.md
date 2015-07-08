@@ -1,10 +1,7 @@
 # Tournament README #
 
-This README would normally document whatever steps are necessary to get your application up and running.
-
 ### What is this repository for? ###
-
-* TODO fill in this information
+When I started working on this app I wasn't able to find a good example of how to setup tournament brackets. So, I wanted to create a resource for other developers to use for their own apps.
 
 ### How do I get set up? ###
 
@@ -25,10 +22,13 @@ This README would normally document whatever steps are necessary to get your app
     4. parseClientKey needs the value from Client Key
 
 
-### Contribution guidelines ###
+### TODO  ###
 
-* TODO fill in this information
+* Add more comments to make the app friendlier to knew people
+* Add the ability to create double elimination tournaments
+* Be able to see the tournaments you participated in not just the ones created
+* When a participant is created check to see if parse has that user and user the parse user if so
+* Add the ability to notifiy a user when it is their turn to play(would require the user to have create a parse user)
 
 ### Who do I talk to? ###
-
-* TODO fill in this information
+Current primary developer can be reached at heckert@ludomade.com
